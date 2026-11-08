@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp",
+      "headers": {
+        "x-api-key": "!cat ~/.config/exa/api.key"
+      }
+    }
+  }
+}

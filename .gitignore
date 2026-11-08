@@ -1,0 +1,17 @@
+# machine state + secrets
+auth.json
+sessions/
+cache/
+tmp/
+logs/
+*.bak-*
+models-store.json
+mcp-cache.json
+mcp-auth.json
+mcp-onboarding.json
+mcp-last-seen-version.json
+
+# managed by pi / the installer
+install/
+npm/
+bin/
