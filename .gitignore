@@ -10,6 +10,7 @@ mcp-cache.json
 mcp-auth.json
 mcp-onboarding.json
 mcp-last-seen-version.json
+trust.json
 
 # managed by pi / the installer
 install/
