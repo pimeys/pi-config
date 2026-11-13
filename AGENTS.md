@@ -105,15 +105,29 @@ because CI should validate it or the machine has higher-priority work, do not ar
   process ownership or cwd, determines what's reachable. The likely fix is running the check
   inside the right netns or starting the user's own infra stack, not debugging other users.
 
-## Emacs config changes (any project cwd)
+## Code navigation: LSP first, rg/sed second
 
-`~/.emacs.d` has its own `AGENTS.md`, and it is authoritative for that directory. It is not
-loaded when the cwd is some other repository, so this rule exists to route you there:
+If the string you are about to search for is an identifier — single token, `CamelCase`,
+`snake_case` — call `lsp_workspace_symbols` / `lsp_document_symbols` first. It is one call and
+returns the declaration with field types; `rg` needs `rg` + `read` and returns a file list.
+`rg`/`sed` are for text with no symbol behind it: prose, log lines, config keys, languages with
+no server, and cross-checking a result the LSP already produced.
 
-- Before editing any file under `~/.emacs.d` — `init.el`, `early-init.el`, anything else —
-  read `~/.emacs.d/AGENTS.md` and follow it, whichever project you were asked about.
-- Emacs runs as a long-lived daemon (`pgrep -a emacs`). A file edit alone is NOT a completed
-  change: apply it to the daemon with `emacsclient --eval` in the same turn, then verify the
-  live state there. A batch `emacs -Q`/`emacs --batch -l init.el` run is not verification.
-- Deletions need an explicit purge in the daemon (keys, hooks, advice, features, packages);
-  `load-file` does not undo removals. Never restart the daemon unless the user asks.
+Same for every other semantic operation — rename, find references, goto definition,
+diagnostics, formatting, code actions — the `lsp_*` tool first; it is fewer tool calls and
+cannot mis-attribute a symbol.
+
+Hard rules:
+
+- If unsure the server is up, run `lsp_status`. A cold rust-analyzer reports "No Server
+  Instances started", and the *first* `lsp_find_references` on a file boots it and may return
+  "No references found" with only warnings. That is a cold start, not a broken tool: retry the
+  same query once (after indexing) before concluding anything.
+- "The LSP returned nothing" means retry, then investigate. It never means "fall back to sed".
+- Renames go `lsp_rename` → preview → `lsp_apply`. Never pattern-substitute a field, type,
+  function, or parameter name across files: sed cannot tell a struct field from an identically
+  named proto field, a function parameter, or an unrelated struct's field, and silently renames
+  all of them (this has already produced two non-compiling edits).
+- After any refactor: `lsp_diagnostics` on every touched file. rust-analyzer may not load every
+  workspace package or root, and may not cover `#[cfg(test)]`, so confirm with
+  `cargo check --all-targets` before calling it verified.

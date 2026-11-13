@@ -1,0 +1,80 @@
+--- a/src/lsp-server-client.ts
++++ b/src/lsp-server-client.ts
+@@ -275,6 +275,19 @@
+     : combined.subarray(combined.length - MAX_STDERR_BYTES);
+ }
+ 
++/** LSP `ContentModified`: the server's view of the file changed, retry per spec. */
++const CONTENT_MODIFIED_CODE = -32801;
++
++/** Walk an error's cause chain looking for a `ContentModified` JSON-RPC error. */
++function isContentModifiedError(error: unknown): boolean {
++  let current: unknown = error;
++  while (current !== null && typeof current === "object") {
++    if ((current as { code?: unknown }).code === CONTENT_MODIFIED_CODE) return true;
++    current = (current as { cause?: unknown }).cause;
++  }
++  return false;
++}
++
+ function abortError(options: LspServerClientOptions): LspServerClientError {
+   return new LspServerClientError(
+     "cancelled",
+@@ -1073,7 +1086,24 @@
+               rangeFormatting: { dynamicRegistration: true },
+               onTypeFormatting: { dynamicRegistration: true },
+               rename: { dynamicRegistration: true, prepareSupport: true },
+-              codeAction: { dynamicRegistration: true, isPreferredSupport: true },
++              codeAction: {
++                dynamicRegistration: true,
++                isPreferredSupport: true,
++                codeActionLiteralSupport: {
++                  codeActionKind: {
++                    valueSet: [
++                      "quickfix",
++                      "refactor",
++                      "refactor.extract",
++                      "refactor.inline",
++                      "refactor.rewrite",
++                      "source",
++                      "source.organizeImports",
++                      "source.fixAll",
++                    ],
++                  },
++                },
++              },
+             },
+           },
+         },
+@@ -1102,8 +1132,31 @@
+     });
+   }
+ 
++  /**
++   * Retries `ContentModified` failures: rust-analyzer answers requests that arrive while its
++   * workspace is still loading with `-32801 content modified`, and the LSP spec tells the client
++   * to retry. Without this every first rename/reference request in a fresh session fails.
++   */
+   private async sendRequestWithBudget<TResult>(
+     method: string,
++    parameters: unknown,
++    budgetMs: number,
++    operation: string,
++    signal?: AbortSignal,
++  ): Promise<TResult> {
++    const deadline = Date.now() + budgetMs;
++    for (;;) {
++      try {
++        return await this.sendRequestOnce<TResult>(method, parameters, budgetMs, operation, signal);
++      } catch (cause) {
++        if (!isContentModifiedError(cause) || Date.now() + 1_000 > deadline) throw cause;
++        await new Promise((resolve) => setTimeout(resolve, 500));
++      }
++    }
++  }
++
++  private async sendRequestOnce<TResult>(
++    method: string,
+     // oxlint-disable-next-line anti-slop/no-unknown-parameters -- The request budget wrapper forwards opaque JSON-RPC parameters to the protocol connection.
+     parameters: unknown,
+     budgetMs: number,

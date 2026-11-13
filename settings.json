@@ -9,13 +9,52 @@
     "npm:pi-mcp-adapter",
     "npm:@dietrichgebert/ponytail",
     "npm:pi-btw",
-    "npm:pi-coralbricks-provider"
+    "npm:pi-coralbricks-provider",
+    "npm:@ian-pascoe/pi-lsp@0.15.5",
+    "npm:pi-session-search"
   ],
   "extensions": [
     "-builtin:mcp"
   ],
   "extensionChangelogVersions": {
     "{\"source\":\"npm:@narumitw/pi-plan-mode\",\"scope\":\"user\"}": "0.60.0",
-    "{\"source\":\"npm:pi-mcp-adapter\",\"scope\":\"user\"}": "7.0.1"
-  }
+    "{\"source\":\"npm:pi-mcp-adapter\",\"scope\":\"user\"}": "7.0.1",
+    "{\"source\":\"npm:pi-session-search\",\"scope\":\"user\"}": "1.6.1"
+  },
+  "lsp": {
+    "timeouts": {
+      "initializeMs": 120000,
+      "requestMs": 8000,
+      "workspaceRequestMs": 180000
+    },
+    "servers": {
+      "rust": {
+        "command": "rust-analyzer",
+        "languages": [
+          {
+            "extensions": [
+              ".rs"
+            ],
+            "languageId": "rust"
+          }
+        ],
+        "rootMarkers": [
+          "Cargo.toml",
+          "Cargo.lock"
+        ],
+        "workspaceRootMarkers": [
+          "Cargo.lock"
+        ],
+        "maxConcurrentDiagnostics": 1,
+        "settings": {
+          "rust-analyzer": {
+            "check": {
+              "overrideCommand": null
+            }
+          }
+        }
+      }
+    }
+  },
+  "theme": "solarized-osaka"
 }
